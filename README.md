@@ -88,6 +88,15 @@ being the variable whose own variance is genuinely elevated on war-news days. Go
 negative coefficient is a notable, robust-but-counterintuitive result (a safe haven
 "falling" alongside a war-risk shock) flagged for discussion rather than smoothed over.
 
+**Figure 2** (`notebooks/figure2_oil_vs_treasury.png`) makes the case for oil over
+Treasury directly: the 2yr yield's own H/L variance ratio is only 1.3x, against oil's
+11.2x (the identification condition itself); the oil-normalized specification clears
+conventional significance (|t|>2) for almost every variable where the Treasury-normalized
+one doesn't; and an aggregate, scale-free instability score across *all* variables (not
+one cherry-picked example) shows the Treasury specification's typical coefficient swing
+across alternative H-day thresholds sits right at the boundary where a sign flip becomes
+plausible, while oil's sits mostly below it.
+
 See `report/report.pdf` and `notebooks/analysis.ipynb` for the full Table 1/2/3, the
 explicit Iraq-2003-vs-Iran-2026 comparison, and all robustness checks.
 

@@ -16,6 +16,7 @@ import make_table2
 import make_table3
 
 FIGURE1_PATH = PROJECT_ROOT / "notebooks" / "figure1_intensity_timeline.png"
+FIGURE2_PATH = PROJECT_ROOT / "notebooks" / "figure2_oil_vs_treasury.png"
 
 
 def image_data_uri(path) -> str:
@@ -83,6 +84,7 @@ def build_html() -> str:
             nlp_eval = json.load(f)
 
     fig_uri = image_data_uri(FIGURE1_PATH) if FIGURE1_PATH.exists() else ""
+    fig2_uri = image_data_uri(FIGURE2_PATH) if FIGURE2_PATH.exists() else ""
 
     nlp_eval_block = ""
     if nlp_eval.get("status") == "ok":
@@ -131,6 +133,19 @@ def build_html() -> str:
     scores (lexicon, TF-IDF tone, FinBERT) is reported in nlp_eval_report.json.</p>
 
     {normalizing_sections}
+
+    <h2>Figure 2: Why Brent Oil Identifies the Model Better Than the 2yr Treasury Yield</h2>
+    <img src="{fig2_uri}">
+    <p class="note">Panel (a): the identification condition itself -- a normalizing
+    variable's own variance should jump on war-news days; Brent oil's does (11.2x),
+    the 2yr Treasury yield's barely moves (1.3x). Panel (b): |t-statistics| for every
+    other variable's estimated sensitivity, by normalizing-variable choice -- the
+    oil-normalized specification clears conventional significance (|t|>2) almost
+    everywhere the Treasury-normalized one doesn't. Panel (c): a scale-free instability
+    score (swing across three alternative H-day thresholds, relative to each variable's
+    own typical magnitude) computed for every variable, not just one example -- the
+    Treasury specification's typical swing sits at the boundary where a sign flip
+    becomes plausible; the oil specification's sits mostly below it.</p>
 
     <h2>Discussion</h2>
     <p><b>Two normalizing-variable specifications tell different stories.</b> The primary
