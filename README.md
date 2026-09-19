@@ -49,16 +49,16 @@ Full corpus: 4,500 GDELT-indexed articles across 18 of 19 biweekly windows (Jan 
 and is documented as a gap, not near any Table 1 milestone date). H/L classification:
 26 top-decile "war news" days, 26 matched calm days. NLP relevance filter (lexicon)
 evaluated against a 176-article Claude-judged reference set: precision 0.83, recall 0.29
-(picky but accurate — misses many relevant articles that don't use its specific
+(picky but accurate, it misses many relevant articles that don't use its specific
 escalation vocabulary). Inter-method correlation: TF-IDF tone and FinBERT strongly agree
 (0.885); both correlate more loosely with the pure-keyword lexicon (0.57–0.66).
 
 **Primary specification (2-year Treasury yield, matching the original paper):**
-weakly identified — the yield's own variance is *not* clearly elevated on H-days in this
+weakly identified. The yield's own variance is *not* clearly elevated on H-days in this
 sample (unlike Iraq 2003, where it was ~6x higher), so coefficients are large and
 statistically insignificant (e.g. S&P 500: coefficient -961, t=-1.26). Reported in full
 in the report/notebook rather than suppressed, because the instability is itself an
-informative finding — see below.
+informative finding, see below.
 
 **Secondary specification (Brent crude, motivated by the war's Strait-of-Hormuz/oil-supply
 character):** stable and statistically strong across nearly every variable (most
@@ -79,10 +79,10 @@ character):** stable and statistically strong across nearly every variable (most
 | Gold | −10.81 | −3.42 |
 
 **Interpretation:** Treasury yields and inflation breakevens *rise* (not fall) with
-war-risk-driven oil moves — the opposite mechanism from Rigobon & Sack's Iraq 2003
+war-risk-driven oil moves, the opposite mechanism from Rigobon & Sack's Iraq 2003
 result, where war risk was a flight-to-safety shock (yields fell). The 2026 Iran war
 appears to transmit primarily as an **oil supply shock** (inflationary, hawkish for
-rates) rather than a classic flight-to-safety shock — consistent with the war's actual
+rates) rather than a classic flight-to-safety shock. This is consistent with the war's actual
 character (Strait of Hormuz disruption) and with Brent oil, not the 2yr Treasury yield,
 being the variable whose own variance is genuinely elevated on war-news days. Gold's
 negative coefficient is a notable, robust-but-counterintuitive result (a safe haven
@@ -102,22 +102,22 @@ explicit Iraq-2003-vs-Iran-2026 comparison, and all robustness checks.
 
 ## How this was built, step by step
 
-1. `src/config.py` — paths, verified constants (analysis window, tickers/FRED codes,
+1. `src/config.py`: paths, verified constants (analysis window, tickers/FRED codes,
    confound calendar, reference war timeline).
-2. `src/gdelt_intensity.py` + `src/fetch_market_data.py` — primary (uncapped) GDELT
+2. `src/gdelt_intensity.py` + `src/fetch_market_data.py`: primary (uncapped) GDELT
    intensity timeline and the 13 Phase-A financial variables.
 3. `src/gdelt_corpus.py` → `src/scrape_article_text.py` → `src/lexicon.py` /
-   `src/tone_word_list.py` / `src/tone_finbert.py` → `src/build_intensity_index.py` —
+   `src/tone_word_list.py` / `src/tone_finbert.py` → `src/build_intensity_index.py`:
    article-level NLP corpus, three parallel scoring methods, composite index, and NLP
    evaluation (`src/eval/`).
-4. `src/classify_regimes.py` — H/L day classification with confound flagging.
-5. `src/build_master_dataset.py` — merges everything into one trading-calendar-aligned
+4. `src/classify_regimes.py`: H/L day classification with confound flagging.
+5. `src/build_master_dataset.py`: merges everything into one trading-calendar-aligned
    analysis panel.
 6. `src/event_study.py` → `src/run_regressions.py` → `src/variance_decomposition.py` →
-   `src/robustness_checks.py` — the econometric core.
+   `src/robustness_checks.py`: the econometric core.
 7. `src/make_figure1.py`, `src/make_table1.py` / `make_table2.py` / `make_table3.py`,
-   `src/generate_report.py` — figures, tables, and the assembled PDF report.
-8. `notebooks/analysis.ipynb` — executed end-to-end solution notebook.
+   `src/generate_report.py`: figures, tables, and the assembled PDF report.
+8. `notebooks/analysis.ipynb`: executed end-to-end solution notebook.
 
 ## Repository structure
 
@@ -157,7 +157,7 @@ stricter under burst load); the data-pull scripts retry with exponential backoff
 
 ## Data sources
 
-- **News**: [GDELT DOC 2.0 API](https://api.gdeltproject.org/api/v2/doc/doc) — the only
+- **News**: [GDELT DOC 2.0 API](https://api.gdeltproject.org/api/v2/doc/doc), the only
   free, date-range-capable news source checked that could reach back to Jan 2026
   (NewsAPI's free tier and RSS feeds cannot).
 - **Financial data**: [FRED](https://fred.stlouisfed.org) (public `fredgraph.csv`

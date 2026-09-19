@@ -4,7 +4,7 @@ instrument ω3=[ω1,ω2] specification (Sargan/J overidentification test include
 Analytic (IV2SLS) and bootstrap (H/L-stratified resampling) standard errors are both
 reported.
 
-Runs per normalizing variable (see config.NORMALIZING_VARIABLES_TO_RUN) -- the primary
+Runs per normalizing variable (see config.NORMALIZING_VARIABLES_TO_RUN): the primary
 choice (2-year Treasury yield, matching Rigobon & Sack 2003) and a parallel Brent-crude
 experiment, motivated by the war's oil-supply-shock transmission channel. Neither run
 overwrites the other; outputs are saved with a per-variable suffix.
@@ -57,7 +57,7 @@ def iv_estimate(sub: pd.DataFrame, x1: str, xj: str, instruments: list[str]) -> 
         "pvalue": float(fit.pvalues[f"d_{x1}"]),
         "n_obs": int(fit.nobs),
     }
-    if len(instruments) > 1:  # overidentified -- Sargan/J test available
+    if len(instruments) > 1:  # overidentified, so the Sargan/J test is available
         try:
             sargan = fit.sargan
             result["sargan_stat"] = float(sargan.stat)
@@ -69,7 +69,7 @@ def iv_estimate(sub: pd.DataFrame, x1: str, xj: str, instruments: list[str]) -> 
 
 def bootstrap_ci(panel: pd.DataFrame, x1: str, xj: str, n_boot: int = N_BOOTSTRAP) -> dict:
     """Resample H-days and L-days separately (stratified), recompute eq(7)-equivalent
-    (ω1 IV) each time -- matches Rigobon (2003)'s bootstrap approach for GMM SEs."""
+    (ω1 IV) each time. Matches Rigobon (2003)'s bootstrap approach for GMM SEs."""
     rng = np.random.default_rng(RNG_SEED)
     h_df = panel[panel["is_H"]][[f"d_{x1}", f"d_{xj}"]].dropna()
     l_df = panel[panel["is_L"]][[f"d_{x1}", f"d_{xj}"]].dropna()

@@ -1,5 +1,5 @@
 """Classify each business day as H (elevated war-risk-news variance), L (calm), or
-neither, from the composite intensity index -- the data-driven replacement for
+neither, from the composite intensity index. This is the data-driven replacement for
 Rigobon & Sack's hand-picked Table 1.
 
 Rule (locked in with the user): top-decile composite intensity = H; a matched-size set
@@ -8,8 +8,8 @@ stated logic ("choose L days as close as possible to, but not included in," the 
 to control for other factors).
 
 Confound handling: days coinciding with CONFOUND_CALENDAR (FOMC meetings etc.) are
-flagged (not silently dropped) so the identifying assumption -- that H/L variance shifts
-are attributable to Iran war risk specifically, not some other common shock -- can be
+flagged, not silently dropped, so the identifying assumption (that H/L variance shifts
+are attributable to Iran war risk specifically, not some other common shock) can be
 inspected and, if needed, those dates excluded in a robustness pass.
 """
 import numpy as np
@@ -52,7 +52,7 @@ def build_labels() -> pd.DataFrame:
     n_L = int(df["is_L"].sum())
     print(f"L set (nearest calm-pool day per H-day): {n_L} days")
 
-    # Confound flagging (not exclusion by default -- documented, inspectable).
+    # Confound flagging (not exclusion by default, documented and inspectable).
     confound_dates = pd.to_datetime(CONFOUND_CALENDAR, format="%Y%m%d")
     df["confound_flag"] = df["date"].isin(confound_dates)
     n_confound_H = int((df["is_H"] & df["confound_flag"]).sum())
@@ -60,7 +60,7 @@ def build_labels() -> pd.DataFrame:
     print(f"Confound-flagged days: {df['confound_flag'].sum()} total "
           f"({n_confound_H} in H, {n_confound_L} in L)")
 
-    # Direction (descriptive only -- mirrors Table 1's "War Risk: Increased/Decreased"
+    # Direction (descriptive only, mirrors Table 1's "War Risk: Increased/Decreased"
     # column; the estimator itself uses only variance, never direction). Rule: a
     # day-over-day drop in GDELT's average tone score signals escalating coverage.
     df["tone_change"] = df["avg_tone"].diff()

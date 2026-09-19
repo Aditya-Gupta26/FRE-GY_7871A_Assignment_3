@@ -1,7 +1,7 @@
 """Best-effort full-text fetch for a capped subsample of GDELT articles.
 
 High expected failure rate (paywalls, anti-bot, dead links) is normal and handled
-gracefully -- coverage % is logged and reported rather than treated as an error.
+gracefully. Coverage % is logged and reported rather than treated as an error.
 Respects robots.txt. This is a secondary signal (tone_finbert.py falls back to
 title-only scoring where text isn't available); do not block the pipeline on low
 coverage here.
@@ -29,7 +29,7 @@ def _allowed_by_robots(url: str) -> bool:
             rp = robotparser.RobotFileParser()
             try:
                 # RobotFileParser.read() uses urllib with no timeout and can hang
-                # indefinitely on a slow/unresponsive server -- fetch via requests
+                # indefinitely on a slow/unresponsive server, so fetch via requests
                 # (which has a real timeout) and feed the text in via parse() instead.
                 r = requests.get(base + "/robots.txt", headers=HEADERS, timeout=5)
                 rp.parse(r.text.splitlines() if r.status_code == 200 else [])

@@ -25,6 +25,18 @@ def build() -> str:
     )
 
     merged = table1.merge(top_headline, on="date", how="left")
+    # GDELT's artlist mode (sort=dateasc, capped at 250 records/chunk) ends up
+    # returning only the earliest-dated articles of each 14-day chunk, so in
+    # practice the whole 250-record quota for a chunk lands on that chunk's first
+    # day. Only the chunk-start dates actually have article-level text, every other
+    # date in the window has zero rows in gdelt_articles.parquet, hence no headline
+    # to show here. Rather than show a blank/placeholder row, those dates are
+    # dropped from this display table entirely, see the Limitations note on this
+    # same issue for the full H/L date list (table1_regime_dates.csv still has all
+    # of them, this filtering only affects the headline-annotated display table).
+    n_total = len(merged)
+    merged = merged.dropna(subset=["representative_headline"]).copy()
+    n_shown = len(merged)
     merged["regime"] = merged.apply(lambda r: "H" if r["is_H"] else ("L" if r["is_L"] else ""), axis=1)
     merged["War Risk"] = merged["direction"]
     display = merged[["date", "representative_headline", "War Risk", "regime", "confound_flag"]].rename(
@@ -37,7 +49,7 @@ def build() -> str:
     out_path = DATA_PROCESSED / "table1.html"
     with open(out_path, "w") as f:
         f.write(html)
-    print(f"Saved Table 1 HTML ({len(display)} rows) -> {out_path}")
+    print(f"Saved Table 1 HTML ({n_shown}/{n_total} H/L days have a headline and are shown) -> {out_path}")
     return html
 
 

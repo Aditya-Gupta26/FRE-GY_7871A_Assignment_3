@@ -1,6 +1,6 @@
 """NLP scoring method 2: TF-IDF cosine similarity to hand-written war-risk seed
 sentences. Deliberately a different mechanism from lexicon.py's weighted keyword
-counting -- this captures phrase-level/contextual similarity rather than raw term
+counting: this captures phrase-level/contextual similarity rather than raw term
 hits, giving a genuinely independent second signal for the inter-method agreement
 diagnostic in build_intensity_index.py.
 """

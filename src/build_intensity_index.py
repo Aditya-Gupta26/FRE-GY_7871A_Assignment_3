@@ -2,18 +2,20 @@
 NLP scores (lexicon, TF-IDF tone, FinBERT) into one composite daily war-risk news
 intensity index, and evaluate the NLP relevance filter against a labeled reference set.
 
-Combination rule (documented, not black-box): each component is z-scored over the
-full window, then combined as a weighted sum. GDELT volume_pct/volume_raw get the
-largest weight because they are the only uncapped signal (see config.py / gdelt_corpus.py
-comments on the 250-record artlist cap); the three article-level scores get smaller,
-equal weights as a validating/refining layer on top.
+Combination rule, spelled out here so it's not a black box: each component is
+z-scored over the full window, then combined as a weighted sum. GDELT volume_pct/
+volume_raw get the largest weight since they're the only uncapped signal (see
+config.py / gdelt_corpus.py comments on the 250-record artlist cap). The three
+article-level scores get smaller, equal weights, acting as a validating/refining
+layer on top.
 
 NLP evaluation: precision/recall of the lexicon relevance filter against a reference
-label set, and pairwise correlation between the three daily article-level scores, as
-an inter-method agreement diagnostic. The reference labels for this evaluation set were
-produced by Claude reading each sampled headline and judging Iran-war-risk relevance
-(see eval/build_eval_labels.py and AI_USE.md) -- not blind/independent human annotation,
-disclosed explicitly rather than presented as manual ground truth.
+label set, plus pairwise correlation between the three daily article-level scores as
+an inter-method agreement diagnostic. The reference labels for this evaluation set
+were produced by Claude reading each sampled headline and judging Iran-war-risk
+relevance (see eval/build_eval_labels.py and AI_USE.md), so this is not blind or
+independent human annotation. Disclosing that explicitly rather than presenting it
+as manual ground truth.
 """
 import json
 
@@ -35,8 +37,8 @@ def _zscore(s: pd.Series) -> pd.Series:
     std = s.std(ddof=0)
     if not std or np.isnan(std):
         # Zero-variance column (e.g. an upstream scoring file wasn't available yet, so
-        # the column is all zeros) -- return all-zero z-scores rather than NaN (0/0),
-        # which would otherwise poison the composite sum for every day.
+        # the column is all zeros). Return all-zero z-scores rather than NaN (0/0),
+        # since that would otherwise poison the composite sum for every day.
         return pd.Series(0.0, index=s.index)
     return (s - s.mean()) / std
 
@@ -44,7 +46,7 @@ def _zscore(s: pd.Series) -> pd.Series:
 def evaluate_nlp_component() -> dict:
     eval_path = DATA_PROCESSED / "eval_labels.parquet"
     if not eval_path.exists():
-        print("No eval_labels.parquet found -- skipping NLP evaluation (run eval/build_eval_labels.py first)")
+        print("No eval_labels.parquet found, skipping NLP evaluation (run eval/build_eval_labels.py first)")
         return {"status": "skipped_no_labels"}
 
     from lexicon import score_text

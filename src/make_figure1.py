@@ -1,5 +1,5 @@
 """Figure 1: daily war-risk news intensity timeline with H-days marked and known
-milestones annotated -- the visual analog of Rigobon & Sack's Table 1."""
+milestones annotated. This is the visual analog of Rigobon & Sack's Table 1."""
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd

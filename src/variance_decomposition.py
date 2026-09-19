@@ -45,8 +45,8 @@ def main(normalizing_variable: str = NORMALIZING_VARIABLE) -> pd.DataFrame:
     print(table3.to_string(index=False))
     # Sanity flag: this is a lower-bound formula (Rigobon & Sack's own framing), so a
     # value above 100% signals estimation noise (small H/L samples, a near-zero
-    # denominator, or -- as observed for the treasury_2y run on the GDELT-timeline-only
-    # partial signal -- a weak-instrument symptom) rather than a literal reading.
+    # denominator, or, as observed for the treasury_2y run on the GDELT-timeline-only
+    # partial signal, a weak-instrument symptom) rather than a literal reading.
     over_100 = table3[(table3["pct_explained_H_days"].abs() > 1) | (table3["pct_explained_all_days"].abs() > 1)]
     if not over_100.empty:
         print(f"NOTE: {len(over_100)} variable(s) show |>100%| variance explained "

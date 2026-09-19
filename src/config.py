@@ -1,8 +1,8 @@
 """Shared paths, constants, and verified facts for the Iran war-risk heteroskedasticity project.
 
 Every hard-coded date/fact below was verified against a live source during project
-planning on 2026-09-18 (see comments) rather than recalled from model knowledge -- do
-not extend these lists from memory alone; verify new entries the same way.
+planning on 2026-09-18 (see comments), rather than recalled from model knowledge. Don't
+extend these lists from memory alone, verify new entries the same way.
 """
 from pathlib import Path
 
@@ -23,7 +23,7 @@ REQUEST_DELAY_SECONDS = 10.0  # GDELT explicitly asks for >=1 request/5s (confir
 # ---------------------------------------------------------------------------
 # Analysis window
 # ---------------------------------------------------------------------------
-# Fixed end date (not a floating "today") for reproducibility -- see README.
+# Fixed end date (not a floating "today") for reproducibility, see README.
 ANALYSIS_START = "2026-01-01"
 ANALYSIS_END = "2026-09-17"
 
@@ -32,7 +32,7 @@ ANALYSIS_END = "2026-09-17"
 # ---------------------------------------------------------------------------
 # Endpoint confirmed live during planning (2026-09-18): a real timelinevol query over
 # 2026-01-01..2026-09-13 returned a daily volume series that independently spikes to
-# 12.42 on 2026-02-28 from a ~0.5 baseline -- i.e. the war's onset is visible in raw
+# 12.42 on 2026-02-28 from a ~0.5 baseline, i.e. the war's onset is visible in raw
 # GDELT news volume with zero manual curation.
 GDELT_BASE = "https://api.gdeltproject.org/api/v2/doc/doc"
 
@@ -48,7 +48,7 @@ GDELT_QUERY = (
 )
 
 # ---------------------------------------------------------------------------
-# Financial variables (Phase A -- 13 variables; Phase B adds the GSW liquidity premium)
+# Financial variables (Phase A, 13 variables; Phase B adds the GSW liquidity premium)
 # ---------------------------------------------------------------------------
 # yfinance tickers, verified live during planning (2026-09-18) against Yahoo Finance /
 # issuer fact sheets. MES (VanEck Gulf States ETF) was checked and found defunct, so
@@ -82,11 +82,11 @@ FRED_SERIES = {
 # Sack (2003) exactly for direct comparability to their published results.
 NORMALIZING_VARIABLE = "treasury_2y"  # FRED_SERIES["treasury_2y"] = DGS2
 
-# A parallel, secondary normalizing-variable experiment (does not replace the primary
-# choice above): Brent crude is the most direct, least ambiguous transmission channel
+# A parallel, secondary normalizing-variable experiment (doesn't replace the primary
+# choice above). Brent crude is the most direct, least ambiguous transmission channel
 # for Iran/Strait-of-Hormuz risk specifically, so re-running the same estimator with
 # oil as x1 is a natural robustness/comparison exercise given the war's oil-supply-shock
-# character, without abandoning comparability to the original paper's Treasury-yield choice.
+# character, without giving up comparability to the original paper's Treasury-yield choice.
 NORMALIZING_VARIABLES_TO_RUN = [NORMALIZING_VARIABLE, "brent_oil"]
 
 # ---------------------------------------------------------------------------
@@ -107,8 +107,8 @@ FOMC_2026_MEETING_DATES = [
 ]
 
 # Additional non-Iran macro/geopolitical shock dates identified during corpus review
-# should be appended here as they are found, each with a one-line source comment --
-# this list is deliberately seeded thin rather than guessed, and is expected to grow
+# should be appended here as they are found, each with a one-line source comment.
+# This list is deliberately seeded thin rather than guessed, and is expected to grow
 # once classify_regimes.py surfaces borderline-intensity days that need investigation.
 OTHER_CONFOUND_DATES = []
 
@@ -116,7 +116,7 @@ CONFOUND_CALENDAR = sorted(set(FOMC_2026_MEETING_DATES) | set(OTHER_CONFOUND_DAT
 
 # ---------------------------------------------------------------------------
 # Iran war-risk 2026 timeline (validation reference only, NOT the classification
-# mechanism itself -- used solely to sanity-check that NLP-derived H-days land on days
+# mechanism itself). Used solely to sanity-check that NLP-derived H-days land on days
 # we independently know were high-intensity, the same face-validity role Table 1 played
 # in the original paper). Verified live during planning (2026-09-18) against Wikipedia
 # ("2026 Iran war", "Timeline of the 2026 Iran war", "2026 Strait of Hormuz crisis"),

@@ -1,9 +1,9 @@
 """Sample a reference set of articles for the NLP relevance-filter evaluation.
 
-Sampling only -- the actual relevance judgments are produced separately (see
-apply_labels.py) by Claude reading each sampled headline, disclosed in AI_USE.md as
-such rather than presented as independent human annotation. This two-step split keeps
-the sampling procedure itself fully reproducible/scriptable.
+This just does the sampling. The actual relevance judgments are produced separately
+(see apply_labels.py) by Claude reading each sampled headline, disclosed in AI_USE.md
+as such rather than presented as independent human annotation. This two-step split
+keeps the sampling procedure itself fully reproducible/scriptable.
 """
 import sys
 from pathlib import Path

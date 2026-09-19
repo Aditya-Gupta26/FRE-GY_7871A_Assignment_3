@@ -4,8 +4,8 @@ Scores each article title (+ text where available) for:
   - relevance: mentions Iran AND at least one war-risk topic term
   - intensity: weighted count of escalation-related terms (magnitude only)
   - direction: net polarity (escalation-positive minus de-escalation-negative terms),
-    used only for the descriptive "direction" column in the Table-1 equivalent --
-    the econometric method itself only uses variance/intensity, never direction.
+    used only for the descriptive "direction" column in the Table-1 equivalent.
+    The econometric method itself only uses variance/intensity, never direction.
 """
 import re
 
@@ -31,7 +31,7 @@ ESCALATION_TERMS = {
     "casualty": 2.0, "wounded": 1.5, "dead": 1.5, "explosion": 2.0, "shelling": 2.0,
 }
 
-# De-escalation terms (negative weight -- used for direction, not intensity magnitude).
+# De-escalation terms (negative weight, used for direction, not intensity magnitude).
 DEESCALATION_TERMS = {
     "ceasefire": -1.5, "truce": -1.5, "peace": -1.5, "deal": -1.0, "agreement": -1.5,
     "talks": -0.5, "negotiation": -1.0, "negotiations": -1.0, "de-escalate": -2.0,

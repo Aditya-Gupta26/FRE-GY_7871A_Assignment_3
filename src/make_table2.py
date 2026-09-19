@@ -8,7 +8,7 @@ import pandas as pd
 from config import DATA_PROCESSED, NORMALIZING_VARIABLE, NORMALIZING_VARIABLES_TO_RUN
 
 # Rigobon & Sack (2003) Table 2 results, normalized to a 25bp drop in the 2yr yield
-# (their own display scale) -- transcribed directly from the paper for the comparison
+# (their own display scale). Transcribed directly from the paper for the comparison
 # table. Only meaningful against our treasury_2y-normalized run.
 IRAQ_2003_RESULTS = {
     "treasury_10y": {"coef": -0.26, "tstat": 11.85, "units": "pp chg"},

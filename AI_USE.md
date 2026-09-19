@@ -10,14 +10,14 @@ through implementation:
   Markets") into an implementation plan.
 - Live web research to verify facts that could not be taken from model memory: the
   actual 2026 Iran war timeline, GDELT DOC 2.0 API mechanics (endpoint, modes, rate
-  limits — confirmed via a real test call before committing to it as the data source),
+  limits, confirmed via a real test call before committing to it as the data source),
   and real, currently-active tickers/FRED series codes.
 - All pipeline code (`src/*.py`), the composite NLP intensity index design, the
   heteroskedasticity-based IV estimator implementation, robustness checks, report
   generation, and this documentation.
 - **NLP evaluation reference labels**: the relevance labels used to compute the lexicon
   filter's precision/recall (`src/eval/`) were produced by Claude reading each sampled
-  headline and judging Iran-war-risk relevance directly — this is disclosed explicitly
+  headline and judging Iran-war-risk relevance directly. This is disclosed explicitly
   because it is *not* independent human annotation, and should be read as an
   LLM-as-judge evaluation rather than a manually curated gold standard.
 
@@ -38,7 +38,7 @@ through implementation:
   H/L threshold sensitivity testing, the Sargan/J overidentification test, the NLP
   evaluation step, GDELT query precision (boolean/theme-based instead of a bare keyword),
   trading-calendar alignment, the Table 1 direction column, and the explicit
-  Iraq-2003-vs-Iran-2026 comparison table — none of these were in the first draft.
+  Iraq-2003-vs-Iran-2026 comparison table, none of which were in the first draft.
 
 ## Mistakes made, and how they were caught and fixed
 
@@ -74,11 +74,11 @@ is explicit) and fixed by dropping the obsolete argument.
 
 ### Mistake 5: duplicate `const` column passed to `linearmodels.IV2SLS`, breaking every regression
 `run_regressions.py`'s `iv_estimate()` originally passed `instruments=["const", "omega1"]`
-while also passing `exog=["const"]` — `linearmodels.IV2SLS` combines `exog` and
+while also passing `exog=["const"]`. `linearmodels.IV2SLS` combines `exog` and
 `instruments` internally, so `const` appeared twice and every regression failed with
 "instruments do not have full column rank," silently caught by a broad `except Exception`
 and surfacing only as an entire table of `None`s with no visible traceback. This was not
-caught by reading the code — it only showed up by deliberately running the full pipeline
+caught by reading the code. It only showed up by deliberately running the full pipeline
 against synthetic data before trusting it on real data, then debugging the silent
 failure directly. Fixed by removing `const` from the `instruments` list in all three
 call sites (`run_regressions.py` and `robustness_checks.py`); verified afterward with a
@@ -87,7 +87,7 @@ against real data.
 
 ### Mistake 6: z-scoring an all-zero column produced `NaN`, silently poisoning the composite intensity index
 When `build_intensity_index.py` runs before the article-level NLP scoring files exist
-(exactly the situation created by GDELT's rate limiting -- see below), the
+(exactly the situation created by GDELT's rate limiting, see below), the
 `lexicon`/`tone`/`finbert` columns default to a constant 0.0. Z-scoring a zero-variance
 column divides by a zero standard deviation, producing `NaN` for the entire column, which
 then poisoned the weighted-sum composite for every single day (`composite_intensity` was
@@ -99,7 +99,7 @@ Fixed by making `_zscore` return all-zero output for a zero-variance input inste
 ### Mistake 7 (not a bug, a real external constraint worth recording): GDELT's rate limit is far stricter under sustained/burst load than its own error message states
 GDELT's 429 response text says "one every 5 seconds," but sustained use (many requests
 across interactive debugging plus the scripted retries) triggered a much longer-lived
-throttle -- even single, isolated requests kept returning 429 for an extended period
+throttle. Even single, isolated requests kept returning 429 for an extended period
 after a burst, and recovered only after a genuine cooldown with no further requests. The
 fix was behavioral, not code: stop hammering the endpoint, wait, and resume once a
 single diagnostic call confirmed the block had cleared, rather than assuming a fixed
@@ -129,7 +129,7 @@ stock moves), not geopolitical/military news. A spot check scored "UK temporaril
 embassy in Tehran" as strongly *positive* (+0.898 on the negativity scale, i.e. read as
 bullish), which is a counterintuitive result for a war-escalation headline. The model's
 label ordering was verified directly against its Hugging Face config
-(`{0: positive, 1: negative, 2: neutral}`) to rule out a code bug -- it is not one; this
+(`{0: positive, 1: negative, 2: neutral}`) to rule out a code bug. It's not; this
 is a genuine domain-mismatch limitation of using a finance-tuned sentiment model on
 geopolitical text, which is exactly why the composite index treats FinBERT as one of
 three independent signals (20% weight) rather than the sole tone measure, and why the

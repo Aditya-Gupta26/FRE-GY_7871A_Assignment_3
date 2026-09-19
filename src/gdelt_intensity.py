@@ -2,7 +2,7 @@
 
 Uses GDELT DOC 2.0 API timeline modes (timelinevol, timelinevolraw, timelinetone),
 which return a full daily series in one call for the whole analysis window and are
-NOT subject to the 250-record/artlist cap -- this is why they're used as the primary
+NOT subject to the 250-record/artlist cap. That's why they're used as the primary
 intensity signal (see config.py comments and the plan's methodological-rigor notes).
 """
 import json

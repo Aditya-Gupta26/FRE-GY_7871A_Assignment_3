@@ -1,12 +1,12 @@
 """PHASE B (add-on, run only after the Phase-A pipeline is complete and correct).
 
-Builds the on-the-run 10-year Treasury liquidity premium -- the yield gap between the
-most recently auctioned ("on-the-run") 10yr note and a smooth fitted par yield curve --
+Builds the on-the-run 10-year Treasury liquidity premium, the yield gap between the
+most recently auctioned ("on-the-run") 10yr note and a smooth fitted par yield curve,
 via the Fed's public Gurkaynak-Sack-Wright (GSW) dataset, as the 14th financial variable
 extending Table 2/3. This was deliberately dropped from the original 9-variable set in
 Phase A because it requires (i) the on-the-run issuance calendar, (ii) that note's
-traded yield, (iii) the fitted GSW par curve for the same dates, (iv) their spread --
-materially more data-engineering work than every other variable's single clean pull.
+traded yield, (iii) the fitted GSW par curve for the same dates, and (iv) their spread,
+which is materially more data-engineering work than every other variable's single clean pull.
 
 Data source: https://www.federalreserve.gov/data/nominal-yield-curve.htm (feds200628.csv)
 publishes the GSW zero-coupon/par yield curve parameters daily back to 1961; the fitted

@@ -1,5 +1,5 @@
 """Build Ω_H, Ω_L, ΔΩ for every (x1, xj) pair, after checking for and optionally
-correcting serial correlation -- the general paper's own empirical section runs a VAR
+correcting serial correlation. The general paper's own empirical section runs a VAR
 "to remove the effects of serial correlation" before computing regime covariance
 matrices; here a simpler per-series AR(1) filter is used and documented per-variable
 rather than applied blindly.

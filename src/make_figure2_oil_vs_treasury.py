@@ -1,16 +1,16 @@
 """Figure 2: three panels showing why Brent oil identifies the model far better than
 the 2-year Treasury yield for this episode.
 
-(a) Var_H vs Var_L for each candidate normalizing variable itself -- the root cause:
-    a good normalizing variable's own variance should jump sharply on H-days. Brent
-    oil's does (~11x); the 2yr Treasury yield's barely moves (~1.3x).
+(a) Var_H vs Var_L for each candidate normalizing variable itself, which is the root
+    cause: a good normalizing variable's own variance should jump sharply on H-days.
+    Brent oil's does (~11x); the 2yr Treasury yield's barely moves (~1.3x).
 (b) |t-stat| for every other variable's coefficient, treasury_2y-normalized vs
     brent_oil-normalized, with a dashed reference line at |t|=2 (conventional
-    significance) -- shows the oil specification clears significance almost
+    significance). Shows the oil specification clears significance almost
     everywhere the Treasury specification doesn't.
 (c) H/L-threshold sensitivity: how much each normalizing variable's estimated
-    coefficients swing (including sign flips) across three alternative H-day cutoffs
-    -- direct visual evidence of the weak-instrument instability.
+    coefficients swing (including sign flips) across three alternative H-day cutoffs.
+    Direct visual evidence of the weak-instrument instability.
 """
 import json
 
@@ -80,7 +80,7 @@ def panel_b(ax):
 def panel_c(ax):
     """Aggregate instability score across ALL variables (not just one example):
     for each variable, (max - min) coefficient across the three H-day thresholds,
-    divided by the median |coefficient| -- a scale-free measure of how much the
+    divided by the median |coefficient|, giving a scale-free measure of how much the
     estimate swings under an alternative, equally-defensible threshold choice.
     A value near/above 2 means the estimate swings by more than its own typical
     magnitude, i.e. including a sign flip is plausible."""
@@ -105,7 +105,7 @@ def panel_c(ax):
         ax.scatter(xs, ys, color=NV_COLORS[nv], zorder=5, s=18)
     ax.axhline(2.0, color="#333333", linestyle="--", linewidth=0.8,
                label="swing exceeds own typical magnitude\n(plausible sign flip)")
-    ax.set_ylabel("(max − min coef across 0.85/0.90/0.95 thresholds)\n/ median |coef|  —  per variable")
+    ax.set_ylabel("(max − min coef across 0.85/0.90/0.95 thresholds)\n/ median |coef|, per variable")
     ax.set_title("(c) How much do ALL variables' coefficients swing\nacross alternative H-day cutoffs? (lower = more stable)")
     ax.legend(fontsize=8, loc="upper left")
     ax.grid(alpha=0.25, axis="y")

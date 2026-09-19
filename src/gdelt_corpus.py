@@ -1,7 +1,7 @@
 """Pull article/headline-level Iran-war-risk corpus from GDELT (artlist mode).
 
 artlist only returns the top articles from the most recent ~3 months of the queried
-window and caps at 250 records/request (see config.py comments) -- so this loops
+window and caps at 250 records/request (see config.py comments), so this loops
 week-by-week chunks across the full analysis window. This is a supplementary text
 source for the NLP scorers (lexicon/tone/FinBERT); the primary intensity signal is
 gdelt_intensity.py's uncapped timeline data, precisely to avoid this cap biasing the
@@ -16,9 +16,9 @@ import requests
 from config import ANALYSIS_START, ANALYSIS_END, DATA_RAW, GDELT_BASE, GDELT_QUERY, HEADERS, REQUEST_DELAY_SECONDS
 
 
-CHUNK_DAYS = 14  # biweekly chunks -- halves the request count vs. weekly, cutting
+CHUNK_DAYS = 14  # biweekly chunks, halves the request count vs. weekly, which cuts
 # total runtime under GDELT's observed throttling without materially risking the
-# 250-record/request cap except possibly during the Feb28-Mar13 peak (handled by the
+# 250-record/request cap, except possibly during the Feb28-Mar13 peak (handled by the
 # uncapped gdelt_intensity.py series being the primary intensity signal regardless)
 
 
@@ -103,7 +103,7 @@ def main() -> pd.DataFrame:
                 "sourcecountry": a.get("sourcecountry"),
                 "language": a.get("language"),
             })
-        # Incremental checkpoint -- survives interruption without losing prior chunks.
+        # Incremental checkpoint, so we survive interruption without losing prior chunks.
         pd.DataFrame(all_articles).to_parquet(CHECKPOINT_PATH, index=False)
         time.sleep(REQUEST_DELAY_SECONDS)
 

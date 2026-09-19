@@ -1,6 +1,6 @@
 """NLP scoring method 3: transformer sentiment (FinBERT) over article titles.
 
-Runs on titles only by default -- GDELT's artlist mode returns titles/URLs, not full
+Runs on titles only by default, since GDELT's artlist mode returns titles/URLs, not full
 body text, and full-text scraping (scrape_article_text.py) has a documented,
 meaningfully high failure rate (paywalls/anti-bot). Where scraped text IS available
 for an article, it's used in place of the title; this fallback rate is logged so the
