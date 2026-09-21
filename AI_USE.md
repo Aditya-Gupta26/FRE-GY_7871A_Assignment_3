@@ -11,7 +11,18 @@ through implementation:
 - Live web research to verify facts that could not be taken from model memory: the
   actual 2026 Iran war timeline, GDELT DOC 2.0 API mechanics (endpoint, modes, rate
   limits, confirmed via a real test call before committing to it as the data source),
-  and real, currently-active tickers/FRED series codes.
+  real, currently-active tickers/FRED series codes, and (added when the analysis
+  window was rebased to Feb 28 onward) current and 2003 US crude oil production
+  figures straight from EIA, used in the Discussion (13.8 million bbl/day now vs. 5.70
+  million in 2003, see `config.py`'s `US_OIL_PRODUCTION_CONTEXT` for both sources).
+- A one-line check that a Polymarket-odds instrument, floated as an alternative to
+  heteroskedasticity ID, is not purely hypothetical: grepped our own article corpus
+  for the word. An earlier corpus sample (before the Feb 28 window rebase) had real
+  hits, one headline was directly quoted as evidence at that point. The final
+  Feb 28-Sep 20 corpus, resampled from different 14-day chunk boundaries, happens to
+  have zero Polymarket-mentioning articles, this is disclosed honestly in the report's
+  identification-alternatives section rather than reusing the old, no-longer-true
+  quote.
 - All pipeline code (`src/*.py`), the composite NLP intensity index design, the
   heteroskedasticity-based IV estimator implementation, robustness checks, report
   generation, and this documentation.
@@ -24,13 +35,28 @@ through implementation:
 ## What was not AI-generated, or was a joint decision
 
 - **Scope and design decisions were made by the user, not defaulted by AI**: the
-  analysis window (full Jan–Sep 2026, single H/L split, rather than restricting to a
-  pre-war anticipation phase or splitting into sub-regimes), the normalizing variable
-  (US 2-year Treasury yield, matching the original paper exactly, over the alternative
-  of normalizing to Brent crude), the H/L threshold rule (top-decile with nearby-matched
-  L days), and the decision to build the on-the-run Treasury liquidity premium as a
-  deliberate Phase B add-on rather than attempting it inline with the rest of the
-  Phase-A pipeline.
+  analysis window (originally Jan-Sep 2026, single H/L split, rather than restricting
+  to a pre-war anticipation phase or splitting into sub-regimes), the normalizing
+  variable (US 2-year Treasury yield, matching the original paper exactly, over the
+  alternative of normalizing to Brent crude), the H/L threshold rule (top-decile with
+  nearby-matched L days), and the decision to build the on-the-run Treasury liquidity
+  premium as a deliberate Phase B add-on rather than attempting it inline with the
+  rest of the Phase-A pipeline.
+- **The window and the sub-regime decision above were both revisited later.** The
+  assignment's deliverables text specifically asked for "the Iran war (Feb 28 to
+  present)", not "beginning of 2026", so the window was rebased to 2026-02-28 through
+  2026-09-20. The same update also asked for a bad-news/good-news/no-news split, so the
+  earlier "single H/L split, not sub-regimes" decision was explicitly reopened and a
+  three-regime extension was added on top of (not instead of) the original H/L Table
+  1/2/3. Both changes were user decisions, not something defaulted quietly.
+- **GDELT chunk-cap fix, considered and declined.** `gdelt_corpus.py`'s artlist pull
+  is known to only get real article text on 1 day out of every 14 (see the Mistake 1/7
+  entries below and the report's Limitations), because the sort order plus the
+  250-record cap means one chunk's entire quota lands on its first day. Fixing this
+  properly (smaller chunks) was considered when the window was rebased anyway, and
+  declined on purpose, it would add real re-fetch time and re-throttling risk for a
+  problem the three-regime extension does not actually depend on (it uses the dense,
+  uncapped tone-based direction signal instead).
 - The plan itself went through an explicit user-requested critique pass ("go over the
   plan... see if something's off... make this more robust") before implementation began,
   which surfaced and added: the confound-calendar mitigation for the core identifying
@@ -122,6 +148,47 @@ timeout parameter and hung the whole scraping run on a single slow/unresponsive 
 process still alive but making no forward progress). Fixed by fetching `robots.txt` via
 `requests` (which has a real timeout) and feeding the text into `RobotFileParser.parse()`
 instead of letting it fetch the file itself.
+
+### Mistake 10: re-fetching the article corpus for the Feb 28 window silently reused a stale checkpoint from the old Jan 1 window
+`gdelt_corpus.py`'s checkpoint/resume logic (`gdelt_articles_checkpoint.parquet`) was
+built to survive an interrupted run of the *same* window, it was never designed to
+notice that `ANALYSIS_START`/`ANALYSIS_END` had changed entirely. When the window was
+rebased to Feb 28 - Sep 20 and the corpus re-fetch was kicked off, it happily resumed
+from the leftover checkpoint of the earlier Jan 1 - Sep 17 run, meaning the final
+corpus would have silently included pre-Feb-28 articles that no longer belong in this
+analysis window at all. Caught by inspecting the checkpoint's `chunk_start` values
+mid-run and noticing dates from January and early February sitting next to the new
+window's dates. Fixed two ways: deleted the stale checkpoint/output files once, and
+more importantly, added a real guard in `gdelt_corpus.py` so any future run filters
+the checkpoint to only chunks whose `chunk_start` falls inside the *current*
+`ANALYSIS_START`/`ANALYSIS_END`, discarding (and printing a warning about) anything
+else, so a stale checkpoint from a different window can no longer be silently reused.
+
+### Mistake 11: `gdelt_corpus.py` crashed outright on a raw connection drop instead of retrying
+`fetch_artlist_chunk`'s retry loop only handled bad HTTP status codes and JSON decode
+errors, a `RemoteDisconnected`/`ReadTimeout` raised directly by `requests.get()` (seen
+in practice during a GDELT throttling episode) wasn't caught at all, so it propagated
+up and killed the entire script, losing whatever chunks hadn't been checkpointed yet
+in that run. Caught immediately from the traceback (an uncaught
+`requests.exceptions.ConnectionError`). Fixed by wrapping the request itself in a
+`try/except requests.exceptions.RequestException` inside the same retry loop, so a raw
+connection drop is now treated exactly like a bad status code, log it, back off, retry,
+not a reason to crash the whole run.
+
+### Note (not a mistake): rebasing the analysis window meant re-verifying every specific number written into the report's prose, not just re-running the pipeline
+Several report/notebook paragraphs (the ceasefire-day narrative, the Beirut-headline
+example in Limitations, several t-stats and ratios) were originally written quoting
+specific numbers and even specific headlines from the Jan 1 - Sep 17 run. Re-running
+the pipeline on the new Feb 28 window produced a different corpus sample (different
+GDELT chunk boundaries land on different calendar dates), so some of those exact
+headlines no longer exist in the new corpus, and this makes stale narrative text a real
+risk on any full re-run, not a one-off oversight the first time it happened. Handled by
+grepping the rendered report text for every previously-known hardcoded number after
+each full re-run and either verifying it against fresh output or rewriting it, and by
+converting as many of these callouts as possible (recall/precision, variance ratios,
+gold/broad-dollar t-stats, zero-inflation %, max z-score) into values computed live
+from the current run's data inside `generate_report.py`, rather than typed prose, so
+future re-runs can't silently go stale the same way again.
 
 ### Note (not a mistake): FinBERT's domain mismatch shows up in spot checks
 FinBERT (`ProsusAI/finbert`) is trained on financial-news sentiment (earnings, deals,

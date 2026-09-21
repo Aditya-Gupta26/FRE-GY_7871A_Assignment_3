@@ -12,7 +12,7 @@ from io import StringIO
 from config import ANALYSIS_START, ANALYSIS_END, DATA_RAW, FRED_SERIES, HEADERS, YFINANCE_TICKERS
 
 # Extra lead days before ANALYSIS_START so the first real day's Δx isn't dropped.
-LEAD_START = "2025-12-15"
+LEAD_START = "2026-02-20"
 
 
 def fetch_fred_series(series_id: str) -> pd.Series:

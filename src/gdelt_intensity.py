@@ -15,6 +15,20 @@ from config import ANALYSIS_START, ANALYSIS_END, DATA_RAW, GDELT_BASE, GDELT_QUE
 
 TIMELINE_MODES = ["timelinevol", "timelinevolraw", "timelinetone"]
 
+CHECKPOINT_PATH = DATA_RAW / "gdelt_timeline_checkpoint.json"
+
+
+def _load_checkpoint() -> dict:
+    if CHECKPOINT_PATH.exists():
+        with open(CHECKPOINT_PATH) as f:
+            return json.load(f)
+    return {}
+
+
+def _save_checkpoint(checkpoint: dict) -> None:
+    with open(CHECKPOINT_PATH, "w") as f:
+        json.dump(checkpoint, f)
+
 
 def _to_gdelt_dt(date_str: str, end_of_day: bool = False) -> str:
     suffix = "235959" if end_of_day else "000000"
@@ -48,10 +62,21 @@ def fetch_timeline(mode: str, max_retries: int = 6) -> list[dict]:
 
 
 def main() -> pd.DataFrame:
+    # Checkpointed per mode, GDELT's rate limiting is intermittent enough that a run
+    # can succeed on mode 1, fail on mode 2, and a naive re-run from scratch just burns
+    # the already-successful mode's request again for no reason. Same idea as
+    # gdelt_corpus.py's checkpointing, applied here too.
+    checkpoint = _load_checkpoint()
     frames = {}
     for i, mode in enumerate(TIMELINE_MODES):
-        print(f"Fetching GDELT {mode} ({ANALYSIS_START} to {ANALYSIS_END})...")
-        series = fetch_timeline(mode)
+        if mode in checkpoint:
+            print(f"Using checkpointed GDELT {mode} (already fetched this run)")
+            series = checkpoint[mode]
+        else:
+            print(f"Fetching GDELT {mode} ({ANALYSIS_START} to {ANALYSIS_END})...")
+            series = fetch_timeline(mode)
+            checkpoint[mode] = series
+            _save_checkpoint(checkpoint)
         df = pd.DataFrame(series)
         df["date"] = pd.to_datetime(df["date"], format="%Y%m%dT%H%M%SZ").dt.date
         frames[mode] = df.set_index("date")["value"].rename(mode)
@@ -69,6 +94,8 @@ def main() -> pd.DataFrame:
     out_path = DATA_RAW / "gdelt_daily_timeline.parquet"
     out.to_parquet(out_path, index=False)
     print(f"Saved {len(out)} rows -> {out_path}")
+    if CHECKPOINT_PATH.exists():
+        CHECKPOINT_PATH.unlink()
     return out
 
 

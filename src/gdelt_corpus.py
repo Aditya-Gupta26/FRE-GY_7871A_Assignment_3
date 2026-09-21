@@ -48,7 +48,16 @@ def fetch_artlist_chunk(start: pd.Timestamp, end: pd.Timestamp, max_retries: int
     }
     backoff = 20.0
     for attempt in range(1, max_retries + 1):
-        r = requests.get(GDELT_BASE, params=params, timeout=60, headers=HEADERS)
+        try:
+            r = requests.get(GDELT_BASE, params=params, timeout=60, headers=HEADERS)
+        except requests.exceptions.RequestException as e:
+            # A raw connection drop (seen in practice: RemoteDisconnected mid-backoff
+            # storm) is just as retryable as a bad status code, not a reason to crash
+            # the whole run and lose every other chunk's progress.
+            print(f"    attempt {attempt}: {type(e).__name__}, retrying in {backoff:.0f}s")
+            time.sleep(backoff)
+            backoff *= 1.5
+            continue
         if r.status_code == 200:
             try:
                 data = r.json()
@@ -69,11 +78,21 @@ FAILED_CHUNKS_PATH = DATA_RAW / "gdelt_articles_failed_chunks.json"
 
 def main() -> pd.DataFrame:
     ranges = _week_ranges(ANALYSIS_START, ANALYSIS_END)
+    expected_starts = {start.strftime("%Y-%m-%d") for start, _ in ranges}
 
     all_articles = []
     done_starts = set()
     if CHECKPOINT_PATH.exists():
         prev = pd.read_parquet(CHECKPOINT_PATH)
+        # Only trust checkpoint rows whose chunk actually belongs to the CURRENT
+        # ANALYSIS_START/END window. A checkpoint left over from a previous run with a
+        # different window (e.g. a different ANALYSIS_START) would otherwise silently
+        # get merged into this run's output, which is wrong, not just stale.
+        stale = prev[~prev["chunk_start"].isin(expected_starts)]
+        prev = prev[prev["chunk_start"].isin(expected_starts)]
+        if len(stale):
+            print(f"Ignoring {len(stale)} checkpointed article(s) from {stale['chunk_start'].nunique()} "
+                  f"chunk(s) outside the current window ({ANALYSIS_START} to {ANALYSIS_END})")
         all_articles = prev.to_dict("records")
         done_starts = set(prev["chunk_start"].unique())
         print(f"Resuming from checkpoint: {len(all_articles)} articles already fetched, "

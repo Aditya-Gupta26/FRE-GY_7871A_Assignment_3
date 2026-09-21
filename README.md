@@ -11,9 +11,16 @@ through Heteroskedasticity"* (*Review of Economics and Statistics*).
 The original paper hand-picked 17 "war news" dates from reading financial press
 coverage of the Iraq war buildup (Jan–Mar 2003). This project replaces that manual step
 with a data-driven NLP pipeline that scores actual dated news coverage of Iran war risk
-(GDELT-indexed, Jan 1 – Sep 17, 2026) to systematically classify high-variance ("H") vs.
-calm ("L") war-news days, then applies the identical heteroskedasticity-based estimator
-to a set of global market financial variables.
+(GDELT-indexed, Feb 28 to Sep 20 2026, the actual war window, per the assignment's
+deliverables text; an earlier version of this project used Jan 1 as the start date,
+following the assignment's looser "beginning of 2026" phrasing, since superseded) to
+systematically classify high-variance ("H") vs. calm ("L") war-news days, then applies
+the identical heteroskedasticity-based estimator to a set of global market financial
+variables. On top of the core H/L replication, this project also splits H-days into
+"bad" (escalatory) vs. "good" (de-escalatory) war news as an extension, and includes a
+written comparison of heteroskedasticity-based identification against other approaches
+(narrative event-study, text-based shock index, a market-priced instrument, GARCH/
+regime-switching, local projections), see the report/notebook for both.
 
 ## Methods applied
 
@@ -41,64 +48,86 @@ to a set of global market financial variables.
    where significant) before computing covariances; first-half vs. second-half
    coefficient-stability testing across the war's very different phases; H/L threshold
    sensitivity re-estimation; the Sargan/J overidentification test.
+6. **Three-regime extension.** H-days are split further into "bad" (war risk
+   escalating) and "good" (war risk de-escalating), using the tone-based `direction`
+   signal, and the same heteroskedasticity estimator is re-run on bad-vs-calm,
+   good-vs-calm, and bad-vs-good. Small-sample by construction, reported with an
+   explicit N-count caveat rather than hidden.
+7. **Novel-phrasing check.** The lexicon relevance filter's false negatives are split
+   into "missing the word iran entirely" (already known) vs. "has iran but no
+   relevance-term hit" (genuinely missed vocabulary), and the top missed terms are
+   pulled out and categorized as novel-to-this-war vs. a generic gap in the hand-built
+   list.
+8. **Alternatives to heteroskedasticity ID.** A written comparison against narrative
+   event-study, a text-based shock index, a market-priced instrument (Polymarket
+   odds, checked for real hits in our own corpus), GARCH/regime-switching, and local
+   projections/SVAR, with a ranked recommendation.
 
 ## Key results
 
-Full corpus: 4,500 GDELT-indexed articles across 18 of 19 biweekly windows (Jan 1–Sep 17,
-2026; one window, Aug 27–Sep 9, could not be fetched after repeated GDELT rate-limiting
-and is documented as a gap, not near any Table 1 milestone date). H/L classification:
-26 top-decile "war news" days, 26 matched calm days. NLP relevance filter (lexicon)
-evaluated against a 176-article Claude-judged reference set: precision 0.83, recall 0.29
-(picky but accurate, it misses many relevant articles that don't use its specific
-escalation vocabulary). Inter-method correlation: TF-IDF tone and FinBERT strongly agree
-(0.885); both correlate more loosely with the pure-keyword lexicon (0.57–0.66).
+Corpus: 3,750 GDELT-indexed articles across all 15 biweekly windows in the Feb 28 - Sep
+20, 2026 war window (some windows needed a few retries against GDELT's rate limiting,
+see AI_USE.md, but all eventually came through). H/L classification: 20 top-decile
+"war news" days, 20 matched calm days (18 H / 16 L after trading-calendar alignment).
+NLP relevance filter (lexicon) evaluated against a 180-article Claude-judged reference
+set: precision 1.00, recall 0.31 (very picky, misses close to 70% of genuinely relevant
+articles that don't use its specific escalation vocabulary, see the false-negative
+check in the report for concrete examples and what vocabulary it's actually missing).
+Inter-method correlation: TF-IDF tone and FinBERT agree reasonably well (0.79), both
+correlate more loosely with the pure-keyword lexicon (0.56-0.59).
 
-**Primary specification (2-year Treasury yield, matching the original paper):**
-weakly identified. The yield's own variance is *not* clearly elevated on H-days in this
-sample (unlike Iraq 2003, where it was ~6x higher), so coefficients are large and
-statistically insignificant (e.g. S&P 500: coefficient -961, t=-1.26). Reported in full
-in the report/notebook rather than suppressed, because the instability is itself an
-informative finding, see below.
+**Primary specification (2-year Treasury yield, matching the original paper):** still
+weakly identified. The yield's own variance is only about 1.2x higher on H-days than
+L-days in this window (vs. Iraq 2003's roughly 6x), so most coefficients don't clear
+conventional significance.
 
-**Secondary specification (Brent crude, motivated by the war's Strait-of-Hormuz/oil-supply
-character):** stable and statistically strong across nearly every variable (most
-|t-stats| > 2–8). Per $1 move in Brent, driven by war risk:
+**Secondary specification (Brent crude):** stable and statistically strong across
+nearly every variable, own H/L variance ratio about 5.3x. Per $1 move in Brent, driven
+by war risk:
 
 | Variable | Coefficient | t-stat |
 |---|---|---|
-| S&P 500 | −10.12 | −3.26 |
-| Israel equities | −0.23 | −2.21 |
-| EM equities | −0.20 | −3.63 |
-| VIX | +0.33 | +3.48 |
-| Broad dollar index | +0.074 | +6.14 |
-| 2yr Treasury yield | +0.0042 | +2.02 |
-| 10yr Treasury yield | +0.0032 | +1.89 |
-| 10yr breakeven inflation | +0.0027 | +3.97 |
-| BBB spread | +0.0023 | +4.58 |
-| High-yield spread | +0.0123 | +8.14 |
-| Gold | −10.81 | −3.42 |
+| S&P 500 | -8.60 | -2.57 |
+| Israel equities | -0.18 | -1.79 |
+| EM equities | -0.14 | -2.51 |
+| VIX | +0.30 | +3.01 |
+| Broad dollar index | +0.077 | +5.23 |
+| 2yr Treasury yield | +0.0033 | +1.68 |
+| 10yr Treasury yield | +0.0024 | +1.48 |
+| 10yr breakeven inflation | +0.0018 | +2.43 |
+| BBB spread | +0.0020 | +4.94 |
+| High-yield spread | +0.013 | +9.18 |
+| Gold | -7.70 | -2.61 |
 
-**Interpretation:** Treasury yields and inflation breakevens *rise* (not fall) with
-war-risk-driven oil moves, the opposite mechanism from Rigobon & Sack's Iraq 2003
-result, where war risk was a flight-to-safety shock (yields fell). The 2026 Iran war
-appears to transmit primarily as an **oil supply shock** (inflationary, hawkish for
-rates) rather than a classic flight-to-safety shock. This is consistent with the war's actual
-character (Strait of Hormuz disruption) and with Brent oil, not the 2yr Treasury yield,
-being the variable whose own variance is genuinely elevated on war-news days. Gold's
-negative coefficient is a notable, robust-but-counterintuitive result (a safe haven
-"falling" alongside a war-risk shock) flagged for discussion rather than smoothed over.
+**Interpretation:** same qualitative story as before the window rebase, equities down,
+volatility/dollar/spreads up, Treasury yields and breakevens *rising* (not falling)
+with war-risk-driven oil moves, the opposite of Iraq 2003's flight-to-safety pattern.
+Consistent with an oil-supply-shock transmission mechanism. Gold still falls, a
+counterintuitive but consistently-signed result across both this run and the earlier
+Jan-1-anchored one.
 
-**Figure 2** (`notebooks/figure2_oil_vs_treasury.png`) makes the case for oil over
-Treasury directly: the 2yr yield's own H/L variance ratio is only 1.3x, against oil's
-11.2x (the identification condition itself); the oil-normalized specification clears
-conventional significance (|t|>2) for almost every variable where the Treasury-normalized
-one doesn't; and an aggregate, scale-free instability score across *all* variables (not
-one cherry-picked example) shows the Treasury specification's typical coefficient swing
-across alternative H-day thresholds sits right at the boundary where a sign flip becomes
-plausible, while oil's sits mostly below it.
+**Three-regime extension** (bad war news vs. good war news vs. calm, see report for
+full tables): bad-news H-days = 5, good-news H-days = 10, both small subsets of an
+already-small H set. Checked the brief's exact stated hypothesis directly (bad news:
+yields and oil up, equities down, good news the reverse) using raw average daily
+changes by regime, not the IV coefficients, and it holds up on 7 of the 8 variables
+the brief names directly: oil and both yields rise on bad news and fall on good news,
+credit spreads widen then narrow, and the S&P 500 falls on bad news and jumps back up
+on good news. The full IV-based estimator on the same split is noisier and coefficients
+often flip sign between the two, which the raw-average check above is not, so that
+part is reported with an N-count caveat front and center rather than smoothed over.
+
+**Identification-alternatives writeup:** heteroskedasticity ID stays the primary
+method (matches both reference papers, avoids needing to sign every headline), but a
+Polymarket-odds market instrument is flagged as the strongest, cheapest robustness
+cross-check to add. Checked, not assumed: an earlier corpus sample (before the window
+was rebased to Feb 28) did have real Polymarket-mentioning articles, this final
+corpus's particular 14-day chunk sample happens not to, disclosed honestly in the
+report rather than reusing the old quote (see AI_USE.md).
 
 See `report/report.pdf` and `notebooks/analysis.ipynb` for the full Table 1/2/3, the
-explicit Iraq-2003-vs-Iran-2026 comparison, and all robustness checks.
+three-regime extension, the Eq(10) check, the identification-alternatives writeup, the
+novel-phrasing/false-negative analysis, and all robustness checks.
 
 ## How this was built, step by step
 
@@ -115,9 +144,15 @@ explicit Iraq-2003-vs-Iran-2026 comparison, and all robustness checks.
    analysis panel.
 6. `src/event_study.py` → `src/run_regressions.py` → `src/variance_decomposition.py` →
    `src/robustness_checks.py`: the econometric core.
-7. `src/make_figure1.py`, `src/make_table1.py` / `make_table2.py` / `make_table3.py`,
+7. `src/three_regime_analysis.py` → `src/make_table_three_regime.py`: the bad/good
+   war-news extension, reuses the econometric core's own functions on sub-masks of
+   the H set rather than duplicating any estimator logic.
+8. `src/eval/analyze_false_negatives.py`: the novel-phrasing check, run after a fresh
+   eval-label pass.
+9. `src/make_figure1.py` / `make_figure2_oil_vs_treasury.py` / `make_figure3_var_covar.py`,
+   `src/make_table1.py` / `make_table2.py` / `make_table3.py` / `make_table_three_regime.py`,
    `src/generate_report.py`: figures, tables, and the assembled PDF report.
-8. `notebooks/analysis.ipynb`: executed end-to-end solution notebook.
+10. `notebooks/analysis.ipynb`: executed end-to-end solution notebook.
 
 ## Repository structure
 
@@ -147,7 +182,9 @@ python3 build_intensity_index.py
 python3 classify_regimes.py
 python3 build_master_dataset.py
 python3 event_study.py && python3 run_regressions.py && python3 variance_decomposition.py && python3 robustness_checks.py
-python3 make_figure1.py
+python3 three_regime_analysis.py
+python3 eval/analyze_false_negatives.py
+python3 make_figure1.py && python3 make_figure2_oil_vs_treasury.py && python3 make_figure3_var_covar.py
 python3 generate_report.py
 ```
 

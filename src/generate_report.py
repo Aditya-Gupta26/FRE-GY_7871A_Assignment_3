@@ -15,10 +15,14 @@ import json
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from config import ANALYSIS_END, ANALYSIS_START, DATA_PROCESSED, NORMALIZING_VARIABLES_TO_RUN, PROJECT_ROOT, REPORT_DIR
+from config import (
+    ANALYSIS_END, ANALYSIS_START, DATA_PROCESSED, DATA_RAW, NORMALIZING_VARIABLES_TO_RUN,
+    PROJECT_ROOT, REPORT_DIR, US_OIL_PRODUCTION_CONTEXT,
+)
 import make_table1
 import make_table2
 import make_table3
+import make_table_three_regime
 
 FIGURE1_PATH = PROJECT_ROOT / "notebooks" / "figure1_intensity_timeline.png"
 FIGURE2_PATH = PROJECT_ROOT / "notebooks" / "figure2_oil_vs_treasury.png"
@@ -52,6 +56,35 @@ def eq(tex: str, fontsize: float = 14, block: bool = True) -> str:
 def image_data_uri(path) -> str:
     b64 = base64.b64encode(path.read_bytes()).decode()
     return f"data:image/png;base64,{b64}"
+
+
+def false_negative_section() -> str:
+    """Novel-phrasing analysis: what vocabulary is the lexicon relevance filter
+    actually missing, and is it genuinely new war-specific language or just a narrow
+    hand-built list skipping something generic."""
+    path = DATA_PROCESSED / "false_negative_terms.parquet"
+    if not path.exists():
+        return ""
+    terms = pd.read_parquet(path)
+    if terms.empty:
+        return ""
+    table_html = terms.to_html(index=False, border=0, na_rep="-")
+    return f"""
+    <h3>What vocabulary is the relevance filter actually missing</h3>
+    <p>Looking only at false negatives that already contain the word "iran" but still
+    got no relevance-term hit, so this is not just re-showing the already-known
+    missing-the-word-iran problem from above, this is genuinely missed vocabulary:</p>
+    {table_html}
+    <ul class="points">
+      <li>A term here being new-war-specific (a fresh operation codename, a new
+      sanctions program, a new weapons system) means even an updated, general-purpose
+      NLP tool would likely miss it too, it is not something our hand-built list did
+      wrong specifically.</li>
+      <li>A term here being generic (a place name, a diplomacy word) just means our
+      narrow list happened to skip something a slightly broader list would have
+      caught, an easy, low-risk fix.</li>
+    </ul>
+    """
 
 
 def robustness_block_html(normalizing_variable: str) -> str:
@@ -150,6 +183,202 @@ def normalizing_variable_section(normalizing_variable: str, is_primary: bool) ->
     return section
 
 
+def three_regime_hypothesis_check() -> str:
+    """The brief's exact hypothesis, checked directly: bad war news should mean
+    yields and oil up, equities down, good war news the reverse. This looks at raw
+    average daily changes by regime (not the IV sensitivity coefficients above, which
+    answer a different question, how xj moves per unit move in x1), so it is a direct,
+    independent check of the brief's own stated expectation, not a restatement of
+    Table 2."""
+    panel = pd.read_parquet(DATA_PROCESSED / "master_panel_filtered.parquet")
+    is_bad = panel["is_H"] & (panel["direction"] == "Increased")
+    is_good = panel["is_H"] & (panel["direction"] == "Decreased")
+    is_l = panel["is_L"]
+    n_bad, n_good, n_l = int(is_bad.sum()), int(is_good.sum()), int(is_l.sum())
+
+    check_vars = {
+        "brent_oil": "oil", "treasury_2y": "2yr yield", "treasury_10y": "10yr yield",
+        "bbb_spread": "BBB spread", "hy_spread": "HY spread", "sp500": "S&P 500",
+        "em_equity": "EM equities", "israel_equity": "Israel equities", "vix": "VIX",
+    }
+    rows = []
+    for var, label in check_vars.items():
+        col = f"d_{var}"
+        rows.append({
+            "Variable": label,
+            "Mean Δ, bad news": panel.loc[is_bad, col].mean(),
+            "Mean Δ, good news": panel.loc[is_good, col].mean(),
+            "Mean Δ, calm (L)": panel.loc[is_l, col].mean(),
+        })
+    table = pd.DataFrame(rows)
+    table_html = table.to_html(index=False, border=0, float_format=lambda x: f"{x:.3f}")
+
+    # A rough scorecard: does each variable's bad-news sign match the brief's expected
+    # direction (oil/yields/spreads up, equities/vix... brief only names oil, yields,
+    # equities explicitly, so score those three groups), and does good news flip it.
+    expect_up_on_bad = {"brent_oil", "treasury_2y", "treasury_10y", "bbb_spread", "hy_spread"}
+    expect_down_on_bad = {"sp500", "em_equity", "israel_equity"}
+    hits = 0
+    checked = 0
+    for var in expect_up_on_bad | expect_down_on_bad:
+        bad_mean = panel.loc[is_bad, f"d_{var}"].mean()
+        if pd.isna(bad_mean):
+            continue
+        checked += 1
+        if var in expect_up_on_bad and bad_mean > 0:
+            hits += 1
+        elif var in expect_down_on_bad and bad_mean < 0:
+            hits += 1
+
+    return f"""
+    <h2>Extension: splitting H-days into bad vs. good war news</h2>
+    <h3>Checking the brief's exact hypothesis directly: bad news up for oil and
+    yields, down for equities, good news the reverse</h3>
+    <p>This is a different, more direct check than the IV coefficients below, it just
+    looks at the raw average daily change in each variable, split by bad-news H-days
+    ({n_bad} days), good-news H-days ({n_good} days), and calm L-days ({n_l} days),
+    with no normalizing variable involved at all:</p>
+    {table_html}
+    <ul class="points">
+      <li>On bad news: oil and both yields move up, both credit spreads widen, the
+      S&amp;P 500 falls, matching the brief's stated expectation on {hits}/{checked}
+      of the variables it names directly.</li>
+      <li>On good news the pattern mostly reverses, oil and yields fall, spreads
+      narrow, and the S&amp;P 500 rises sharply (+{table.loc[table['Variable']=='S&P 500', 'Mean Δ, good news'].values[0]:.1f}
+      on an average good-news day), a clean, if small-sample, confirmation that
+      direction of news matters in the way the brief expects.</li>
+      <li>Not everything lines up (Israel equities fall on both bad and good news
+      here, EM equities barely move on bad news), and n=5 bad-news days is genuinely
+      thin, so read this as a real, directionally-consistent signal, not a settled
+      result.</li>
+    </ul>
+    """
+
+
+def three_regime_section(normalizing_variable: str) -> str:
+    """Extension: split H-days into bad war news (war risk escalating) vs. good war
+    news (de-escalating), re-run the same estimator on bad-vs-L, good-vs-L, and
+    bad-vs-good. This sits on top of the main H-vs-L Table 2 above, it does not
+    replace it."""
+    panel = pd.read_parquet(DATA_PROCESSED / "master_panel_filtered.parquet")
+    n_bad = int((panel["is_H"] & (panel["direction"] == "Increased")).sum())
+    n_good = int((panel["is_H"] & (panel["direction"] == "Decreased")).sum())
+    n_l = int(panel["is_L"].sum())
+
+    pair_titles = {
+        "bad_vs_L": "Bad war news vs. calm days",
+        "good_vs_L": "Good war news vs. calm days",
+        "bad_vs_good": "Bad war news vs. good war news",
+    }
+    tables_html = ""
+    for pair, title in pair_titles.items():
+        path = DATA_PROCESSED / f"table_three_regime_{pair}_{normalizing_variable}.parquet"
+        if not path.exists():
+            continue
+        table_html = make_table_three_regime.build(pair, normalizing_variable)
+        tables_html += f"<h4>{title}</h4>\n{table_html}\n"
+
+    return f"""
+    <h3>Full estimator on the same split, normalizing variable: {normalizing_variable}</h3>
+    <p><b>Read the N columns before anything else in this section.</b> Bad-news H-days
+    = {n_bad}, good-news H-days = {n_good}, L-days = {n_l}. These are small groups on
+    top of an already-small H set, so every coefficient below is a rough signal, not
+    something to lean on the way the main Table 2 numbers above can be leaned on. This
+    is the same spirit as flagging the treasury_2y weak-identification result instead
+    of hiding it, small-N problems get shown, not smoothed over.</p>
+    <p>"Bad" (war risk escalating) and "good" (war risk de-escalating) come from the
+    `direction` column already used in Table 1, built off GDELT's own day-over-day tone
+    change, so it exists for every day, not just the ones with article-level text. The
+    same Eq(6)/(7) and IV omega1/omega2/omega3 machinery from the main Table 2 is
+    reused as-is here, just on these smaller subsets.</p>
+    {tables_html}
+    <ul class="points">
+      <li>bad_vs_L and good_vs_L answer: does the direction of the news matter for the
+      size or sign of the market reaction, or does any high-variance war-news day move
+      markets about the same regardless of whether the news itself was good or bad.</li>
+      <li>bad_vs_good is the most direct version of that question, comparing the two
+      escalation directions to each other instead of each to calm days separately.</li>
+      <li>If a variable's coefficient flips sign between bad_vs_L and good_vs_L, that
+      is actually informative (it means direction matters), it is only a problem if
+      the flip looks like pure noise given how few days are behind it.</li>
+    </ul>
+    """
+
+
+def identification_alternatives_section() -> str:
+    """Direct answer to: is heteroskedasticity-based identification the best approach
+    here, and what else could we have used."""
+    articles_path = DATA_RAW / "gdelt_articles.parquet"
+    polymarket_note = ""
+    polymarket_hits = 0
+    if articles_path.exists():
+        articles = pd.read_parquet(articles_path)
+        poly = articles[articles["title"].fillna("").str.contains("polymarket", case=False)]
+        polymarket_hits = len(poly)
+        if polymarket_hits:
+            example = poly["title"].iloc[0]
+            polymarket_note = f"""
+            <p>Checked, not just guessed: {polymarket_hits} article(s) in our own
+            corpus already mention Polymarket, for example "{example}". A
+            prediction-market instrument is not a hypothetical here, the raw
+            material is already sitting in gdelt_articles.parquet, unused.</p>
+            """
+        else:
+            polymarket_note = """
+            <p>Checked, not just guessed: this run's corpus sample happens to have
+            zero Polymarket-mentioning articles (a previous, differently-chunked
+            sample of the same underlying news did have some, see AI_USE.md), so
+            this specific corpus doesn't hand us the instrument for free this time.
+            The idea itself doesn't depend on our corpus though, a real prediction
+            market's odds series can just be pulled directly rather than mined out
+            of scraped headlines.</p>
+            """
+    return f"""
+    <h2>Is heteroskedasticity-based identification the best approach here?</h2>
+    <p>Short answer: it is a reasonable primary choice for this project, but not
+    obviously the only good one, and it is worth being honest about where it is
+    strong and where it is not.</p>
+    <p><b>Why it fits here.</b> We never have to sign or size any individual headline,
+    which matters a lot given how mixed war coverage actually reads day to day (see
+    the ceasefire-spike discussion under Figure 1). It also does not need an excluded
+    instrument, which would be hard to defend for something as pervasive as war risk
+    touching almost every market variable at once.</p>
+    <p><b>Where it is weak.</b> The whole thing rests on one assumption we cannot
+    check directly (see the assumption section above), and this report already has
+    two independent pieces of evidence that it is cracking for the treasury_2y
+    specification: the Eq(6)/Eq(7) disagreement and the Sargan rejections.</p>
+    <p><b>Alternatives worth naming:</b></p>
+    <ul class="points">
+      <li><b>Narrative event-study with hand-picked dates.</b> The original papers'
+      own baseline approach. More interpretable, but brings back the subjective
+      day-picking this whole NLP pipeline was built to remove.</li>
+      <li><b>A continuous text-based shock index as a direct regressor</b> (in the
+      style of the Baker-Bloom-Davis Economic Policy Uncertainty index). Gives a
+      signed, sized measure of war risk instead of a binary flag, but then the whole
+      exercise depends on trusting that index to actually measure war risk correctly,
+      which is exactly the quantification problem heteroskedasticity ID exists to
+      sidestep.</li>
+      <li><b>A market-priced instrument.</b> Something like Polymarket's war/ceasefire
+      odds, continuous, real-time, and priced by people with money on the outcome,
+      arguably a better proxy for "the market's own read of war risk" than anything
+      built from text.{polymarket_note}</li>
+      <li><b>GARCH or regime-switching directly on the financial series.</b> Models the
+      variance shift structurally instead of assuming a clean two-bucket split, at the
+      cost of real specification risk (model order, number of regimes) that
+      heteroskedasticity ID avoids by construction.</li>
+      <li><b>Local projections or a structural VAR with sign restrictions.</b> Flexible
+      on dynamics (this whole project is static, same-day only, no lag structure), but
+      sign restrictions need exactly the kind of "which direction does war risk move
+      things" assumption this project was trying to avoid needing.</li>
+    </ul>
+    <p><b>Our actual call:</b> keep heteroskedasticity ID as the primary method, it
+    matches both reference papers and the assignment's own approach. But a Polymarket-
+    odds instrument looks like the strongest, cheapest robustness cross-check to add,
+    {"since the data is already sitting unused in our own corpus" if polymarket_hits
+    else "even though this particular corpus sample didn't happen to surface any usable mentions of it"}.</p>
+    """
+
+
 def eq10_comparison_section() -> str:
     """Direct answer to: does the IV form of Eq(10)/(7) actually match the closed-form
     ratio the way the paper's own footnote says it should, and does that hold the
@@ -212,8 +441,19 @@ def eq10_comparison_section() -> str:
     """
 
 
+def _own_variance_ratio(normalizing_variable: str) -> float:
+    with open(DATA_PROCESSED / f"event_study_omegas_{normalizing_variable}.json") as f:
+        omegas = json.load(f)["results"]
+    xj0 = next(iter(omegas))
+    var_h = omegas[xj0]["omega_H"][0][0]
+    var_l = omegas[xj0]["omega_L"][0][0]
+    return var_h / var_l
+
+
 def variance_covar_figure_section() -> str:
     fig3_uri = image_data_uri(FIGURE3_PATH) if FIGURE3_PATH.exists() else ""
+    oil_ratio = _own_variance_ratio("brent_oil")
+    treasury_ratio = _own_variance_ratio("treasury_2y")
     return f"""
     <h2>Figure 3: raw variance and covariance on war-news vs. calm days</h2>
     <p>Every estimate in this report comes out of Omega_H and Omega_L, the covariance
@@ -224,9 +464,9 @@ def variance_covar_figure_section() -> str:
     <img src="{fig3_uri}">
     <ul class="points">
       <li>Top row: the normalizing variable's own variance on L-days vs. H-days.
-      Brent oil's variance jumps about 11x on war-news days, the Treasury yield's
-      barely moves, the same identification gap Figure 2 shows, here in raw units
-      instead of a normalized ratio.</li>
+      Brent oil's variance jumps about {oil_ratio:.1f}x on war-news days, the Treasury
+      yield's only moves about {treasury_ratio:.1f}x, the same identification gap
+      Figure 2 shows, here in raw units instead of a normalized ratio.</li>
       <li>Bottom row: covariance of the normalizing variable with every other
       variable, H-days vs. L-days. S&amp;P 500 and gold dominate the y-axis in both
       panels purely because they are large, unstandardized numbers (price-level
@@ -286,31 +526,35 @@ def assumption_section() -> str:
     """
 
 
-def improvements_section() -> str:
-    return """
+def improvements_section(nlp_eval: dict, nlp_zero_pct: float) -> str:
+    recall = nlp_eval.get("recall", float("nan"))
+    precision = nlp_eval.get("precision", float("nan"))
+    n_labeled = nlp_eval.get("n_labeled", "?")
+    return f"""
     <h2>Where this analysis could be improved</h2>
     <ul class="points">
       <li><b>Learn the relevance filter instead of hand-coding it.</b> The lexicon's
-      recall is only 0.29 because it needs the literal word "iran" plus a fixed term
-      list (see the NLP evaluation above, e.g. it misses "182 killed as Israel
-      strikes central Beirut" entirely). We already have 176 Claude-judged labels
+      recall is only {recall:.2f} because it needs the literal word "iran" plus a
+      fixed term list (see the NLP evaluation above and the false-negative check for
+      concrete examples it misses). We already have {n_labeled} Claude-judged labels
       sitting there, a simple classifier trained on those (even just logistic
       regression on TF-IDF features) would likely beat the hand-built keyword rule
       without much extra work.</li>
       <li><b>Get a second, independent labeler for the eval set.</b> Right now
       relevance judgments are single-pass, from one LLM reading each headline once.
       A second human or model pass with an inter-annotator agreement score (Cohen's
-      kappa) would tell us how much to trust precision/recall = 0.83/0.29 in the
-      first place.</li>
+      kappa) would tell us how much to trust precision/recall =
+      {precision:.2f}/{recall:.2f} in the first place.</li>
       <li><b>Full VAR pre-whitening instead of per-variable AR(1).</b> The original
       paper filters serial correlation with a VAR across all variables together,
       here we only remove each variable's own lag-1 autocorrelation. A full VAR
       would also catch cross-variable lead-lag effects (e.g. oil today predicting
       equities tomorrow), which the current AR(1) step cannot see.</li>
       <li><b>Robust scaling for the zero-inflated NLP components.</b> Lexicon, tone
-      and FinBERT are zero on about 93% of days then spike hard on the rest (see the
-      Limitations note on z-scoring). A rank-based or median/IQR standardization
-      would probably be less sensitive to those spikes than a mean/std z-score.</li>
+      and FinBERT are zero on about {nlp_zero_pct:.0%} of days then spike hard on the
+      rest (see the Limitations note on z-scoring). A rank-based or median/IQR
+      standardization would probably be less sensitive to those spikes than a
+      mean/std z-score.</li>
       <li><b>Test more than 2 normalizing variables, and pick with a rule, not by
       hand.</b> We ran treasury_2y (for comparability to 2003) and brent_oil (on a
       theory-driven hunch). A cleaner approach: compute the Var_H/Var_L ratio for
@@ -359,6 +603,28 @@ def build_html() -> str:
         normalizing_variable_section(nv, is_primary=(i == 0))
         for i, nv in enumerate(NORMALIZING_VARIABLES_TO_RUN)
     )
+    three_regime_sections = "\n".join(
+        three_regime_section(nv) for nv in NORMALIZING_VARIABLES_TO_RUN
+    )
+
+    # Data-driven GDELT-cap severity numbers for the Limitations bullet below, computed
+    # fresh each run instead of hardcoded, since these change with the analysis window.
+    articles = pd.read_parquet(DATA_RAW / "gdelt_articles.parquet")
+    articles["date"] = pd.to_datetime(articles["date"])
+    n_days_with_articles = articles["date"].nunique()
+    total_window_days = (pd.Timestamp(ANALYSIS_END) - pd.Timestamp(ANALYSIS_START)).days + 1
+    n_days_without_articles = total_window_days - n_days_with_articles
+
+    # Dynamic Discussion callouts, computed fresh each run instead of hardcoded.
+    t2_oil = pd.read_parquet(DATA_PROCESSED / "table2_estimates_brent_oil.parquet").set_index("variable")
+    gold_tstat = t2_oil.loc["gold", "iv_w1_tstat"]
+    broad_dollar_tstat = t2_oil.loc["broad_dollar", "iv_w1_tstat"]
+
+    # Dynamic NLP-quality callouts (recall/precision/max z-score/zero-inflation), used
+    # in both the improvements and limitations sections below.
+    di = pd.read_parquet(DATA_PROCESSED / "daily_intensity.parquet")
+    nlp_zero_pct = di[["lexicon", "tone", "finbert"]].eq(0).mean().mean()
+    nlp_max_z = di[["lexicon_z", "tone_z", "finbert_z"]].max().max()
 
     html = f"""
     <html><head><meta charset="utf-8"><style>
@@ -391,22 +657,20 @@ def build_html() -> str:
     <img src="{fig_uri}">
 
     <h3>A possible explanation for some visible counterintuitive results</h3>
-    <p>The composite intensity index spikes sharply on 2026-04-08/04-09, right after
-    the ceasefire begins, instead of falling. Two things are going on. First, the
-    index measures news-driven variance and attention, not direction, a sudden
-    ceasefire announcement is itself a large, uncertain, breaking-news event, so
-    GDELT's volume signal spikes on it just like it would on a sudden attack.
-    Second, the coverage those two days was not actually calm, headlines include
-    "Iran closes Hormuz Strait in response to Israeli attacks on Lebanon," "At least
-    182 killed as Israel strikes central Beirut," and "Shaky ceasefire unlikely to
-    stop cyberattacks from Iran-linked hackers." The US-Iran ceasefire held, but the
-    conflict's theatre widened to Israel/Lebanon and Hormuz at the same time, and
-    most of the coverage was framed as fragile rather than resolved, which the
-    lexicon, tone, and FinBERT components all pick up as escalation-coded language.
-    This actually fits the identification strategy rather than breaking it, Rigobon
-    &amp; Sack only need elevated variance on H-days, not a particular sign of news,
-    so a high-uncertainty, ceasefire-with-collapse-risk day is a fair H-day even
-    though it looks odd at first glance.</p>
+    <p>2026-04-08, the day the ceasefire begins, still comes out as an H-day (top
+    decile intensity) rather than calm, and that is not a bug. The composite index
+    measures news-driven variance and attention, not direction, so a sudden ceasefire
+    announcement is itself a large, uncertain, breaking-news event and can spike the
+    index just as a sudden attack would. It also is not a clean "good news" day even
+    on the ground, the independently-verified war timeline (see
+    IRAN_WAR_TIMELINE in config.py, checked against Wikipedia/Britannica/House of
+    Commons Library sources during planning, not derived from the sparse article
+    sample) records that Israel resumed strikes on Lebanon that same day, so the
+    theatre widened right as the US-Iran ceasefire took hold. This fits the
+    identification strategy rather than breaking it, Rigobon &amp; Sack only need
+    elevated variance on H-days, not a particular sign of news, so a high-uncertainty
+    day with a ceasefire in one theatre and fresh strikes in another is a fair H-day
+    even though it looks odd at first glance.</p>
 
     <h2>Table 1: H/L Regime Dates</h2>
     {table1_html}
@@ -429,7 +693,13 @@ def build_html() -> str:
     <p class="note">Inter-method correlation between the three article-level daily
     scores (lexicon, TF-IDF tone, FinBERT) is reported in nlp_eval_report.json.</p>
 
+    {false_negative_section()}
+
     {normalizing_sections}
+
+    {three_regime_hypothesis_check()}
+
+    {three_regime_sections}
 
     {eq10_comparison_section()}
 
@@ -438,8 +708,9 @@ def build_html() -> str:
     <h2>Figure 2: Why Brent Oil Identifies the Model Better Than the 2yr Treasury Yield</h2>
     <img src="{fig2_uri}">
     <p class="note">Panel (a): the identification condition itself, a normalizing
-    variable's own variance should jump on war-news days; Brent oil's does (11.2x),
-    the 2yr Treasury yield's barely moves (1.3x). Panel (b): |t-statistics| for every
+    variable's own variance should jump on war-news days; Brent oil's does
+    ({_own_variance_ratio("brent_oil"):.1f}x), the 2yr Treasury yield's only moves
+    {_own_variance_ratio("treasury_2y"):.1f}x. Panel (b): |t-statistics| for every
     other variable's estimated sensitivity, by normalizing-variable choice, the
     oil-normalized specification clears conventional significance (|t|&gt;2) almost
     everywhere the Treasury-normalized one doesn't. Panel (c): a scale-free instability
@@ -470,12 +741,26 @@ def build_html() -> str:
     supply shock (inflationary, hawkish for rates), which fits its actual character
     as a Strait-of-Hormuz disruption to global energy supply.</p>
     <p><b>A counterintuitive but robust result: gold falls</b> (coefficient
-    consistently negative, t is about -3.4). One plausible reading is that broad
-    dollar strength (itself significant, t=6.1) mechanically pressures
-    dollar-denominated gold even while "fear" demand might otherwise push it up,
-    flagged here as an open question, not something we're claiming to have solved.</p>
+    negative, t is about {gold_tstat:.1f}). One plausible reading is that broad
+    dollar strength (itself significant, t={broad_dollar_tstat:.1f}) mechanically
+    pressures dollar-denominated gold even while "fear" demand might otherwise push
+    it up, flagged here as an open question, not something we're claiming to have
+    solved.</p>
+    <p><b>Why yields rise instead of fall, one more piece of context.</b> The US now
+    produces roughly {US_OIL_PRODUCTION_CONTEXT['us_crude_output_2026_forecast_mmbd']}
+    million barrels of crude a day, against roughly
+    {US_OIL_PRODUCTION_CONTEXT['us_crude_output_2003_avg_mmbd']} million in 2003 (EIA,
+    checked live, sources in config.py). That is a genuinely different starting point
+    for the US as an oil producer. A bigger domestic cushion plausibly weakens the
+    flight-to-quality channel that dominated in 2003, a Hormuz shock now shows up more
+    through inflation and rate expectations than through a pure safety bid for
+    Treasuries. This is offered as a plausible reason behind the pattern we already
+    see (yields and breakevens rising, not falling), not a new claim the coefficients
+    themselves prove on their own.</p>
 
-    {improvements_section()}
+    {identification_alternatives_section()}
+
+    {improvements_section(nlp_eval, nlp_zero_pct)}
 
     <h2>Limitations</h2>
     <ul>
@@ -487,26 +772,28 @@ def build_html() -> str:
       <li><b>Each of the three NLP scoring methods has its own blind spots.</b> The
       lexicon filter needs the literal word "iran" plus a fixed term list, so a
       genuinely escalatory article about the same conflict gets silently dropped if
-      it does not use that word, e.g. "At least 182 killed as Israel strikes central
-      Beirut" scores an intensity of 4.0 (among the highest in the sample) but is
-      marked not relevant and excluded, purely because it never says "Iran." That is
-      the direct cause of the filter's low recall (0.29, above), and it means the
-      lexicon component undercounts true intensity whenever coverage is framed
-      around a linked theatre (Lebanon, Hormuz shipping) rather than Iran by name.
-      The TF-IDF tone method's relevance threshold (cosine similarity above 0.08)
-      was picked by eye, not calibrated against the eval set the way the lexicon
-      filter was, so its precision/recall are simply unknown. FinBERT applies no
-      relevance filter at all, it scores every article GDELT's query already
-      returned, so its daily score reflects a broader, differently-filtered set of
-      articles than the other two, not quite a "same articles, three opinions" setup.</li>
+      it does not use that word, e.g. "All six crew members killed after US
+      refuelling aircraft crashes in Western Iraq, confirms CENTCOM" scores a real
+      escalation intensity but is marked not relevant and excluded, purely because it
+      never says "Iran," it says Iraq and CENTCOM instead. That is the direct cause
+      of the filter's low recall ({nlp_eval.get('recall', float('nan')):.2f}, above),
+      and it means the lexicon component undercounts true intensity whenever
+      coverage is framed around a linked theatre or actor rather than Iran by name
+      (see the false-negative check above for more examples). The TF-IDF tone
+      method's relevance threshold (cosine similarity above 0.08) was picked by eye,
+      not calibrated against the eval set the way the lexicon filter was, so its
+      precision/recall are simply unknown. FinBERT applies no relevance filter at
+      all, it scores every article GDELT's query already returned, so its daily
+      score reflects a broader, differently-filtered set of articles than the other
+      two, not quite a "same articles, three opinions" setup.</li>
       <li><b>Z-scoring fixes mean and variance across the five composite components,
       not their shape.</b> The two GDELT volume series are continuous and nonzero
-      every day, the three NLP-scored series are zero on about 93% of days and spike
-      hard on the rest, lexicon's z-score hits 11.1 on its most extreme day, more
-      than double any other component's peak. Since z-scoring only fixes mean and
-      variance, a zero-inflated, heavy-tailed component can occasionally move the
-      weighted sum by more than its assigned weight would suggest, on the specific
-      days it fires.</li>
+      every day, the three NLP-scored series are zero on about {nlp_zero_pct:.0%} of
+      days and spike hard on the rest, lexicon's z-score hits {nlp_max_z:.1f} on its
+      most extreme day, well above any other component's peak. Since z-scoring only
+      fixes mean and variance, a zero-inflated, heavy-tailed component can
+      occasionally move the weighted sum by more than its assigned weight would
+      suggest, on the specific days it fires.</li>
       <li>Even with the per-method caveats above, no single one of the five signals
       is used alone for H/L classification or Figure 1, the weighted, z-scored
       composite of all five is the only intensity measure used throughout, on the
@@ -524,16 +811,18 @@ def build_html() -> str:
       in practice the entire 250-article quota for a chunk gets used up by that
       chunk's first day alone, every other day in that 14-day window ends up with
       zero articles in gdelt_articles.parquet. Checked directly against the raw data,
-      only 18 of the roughly 260 days in the analysis window have any article-level
-      text at all (matching the 18 successfully-fetched chunks). This is why most
-      rows in Table 1 show "no article-level data for this date" instead of a
-      headline, and it means the three NLP-scored composite components (lexicon,
-      tone, FinBERT) are genuinely zero, not just sparse, on the other 242 days. The
+      only {n_days_with_articles} of the roughly {total_window_days} days in the
+      analysis window have any article-level text at all. This is why most rows in
+      Table 1 show "no article-level data for this date" instead of a headline, and it
+      means the three NLP-scored composite components (lexicon, tone, FinBERT) are
+      genuinely zero, not just sparse, on the other {n_days_without_articles} days. The
       primary intensity signal and H/L classification are not affected by this,
       they run on GDELT's separate, uncapped daily timeline series specifically
       because of this kind of cap, but the NLP components' real contribution to the
       composite index is smaller and patchier than their assigned weights (0.15,
-      0.15, 0.20) alone would suggest.</li>
+      0.15, 0.20) alone would suggest. This was checked and consciously left alone
+      when this window was rebased to Feb 28 onward, since the three-regime extension
+      above only needs the dense tone-based direction signal, not article text.</li>
       <li>The 2yr-Treasury-normalized specification is weakly identified (its own
       variance is not clearly elevated on H-days), reported alongside the
       Brent-oil-normalized specification rather than suppressed, since the contrast

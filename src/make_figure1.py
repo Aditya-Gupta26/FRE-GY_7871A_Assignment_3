@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
 
-from config import DATA_PROCESSED, IRAN_WAR_TIMELINE, PROJECT_ROOT
+from config import ANALYSIS_END, ANALYSIS_START, DATA_PROCESSED, IRAN_WAR_TIMELINE, PROJECT_ROOT
 
 KEY_MILESTONES = [  # subset annotated on the chart to avoid clutter
     ("2026-02-28", "Strikes begin"),
@@ -31,7 +31,9 @@ def main():
         ax.annotate(label, xy=(d, ax.get_ylim()[1]), xytext=(3, -12), textcoords="offset points",
                     fontsize=8, rotation=90, va="top", color="#555555")
 
-    ax.set_title("Iran War-Risk News Intensity, Jan–Sep 2026 (GDELT + NLP composite)")
+    start_label = pd.Timestamp(ANALYSIS_START).strftime("%b %-d")
+    end_label = pd.Timestamp(ANALYSIS_END).strftime("%b %-d, %Y")
+    ax.set_title(f"Iran War-Risk News Intensity, {start_label}–{end_label} (GDELT + NLP composite)")
     ax.set_ylabel("Composite intensity index (z-score weighted)")
     ax.xaxis.set_major_locator(mdates.MonthLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))

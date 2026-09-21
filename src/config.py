@@ -23,9 +23,15 @@ REQUEST_DELAY_SECONDS = 10.0  # GDELT explicitly asks for >=1 request/5s (confir
 # ---------------------------------------------------------------------------
 # Analysis window
 # ---------------------------------------------------------------------------
+# The assignment brief says two slightly different things: the main paragraph says
+# "since the beginning of 2026" (which is what an earlier version of this project used,
+# 2026-01-01), but the Deliverables section is specific: "replicate the paper's three
+# tables for the Iran war (Feb 28 to present)". Feb 28 is the actual war-start date (see
+# IRAN_WAR_TIMELINE below, "US/Israel launch Operation Epic Fury/Roaring Lion strikes").
+# Going with Feb 28 per the deliverables text and an explicit user decision to rebase.
 # Fixed end date (not a floating "today") for reproducibility, see README.
-ANALYSIS_START = "2026-01-01"
-ANALYSIS_END = "2026-09-17"
+ANALYSIS_START = "2026-02-28"
+ANALYSIS_END = "2026-09-20"
 
 # ---------------------------------------------------------------------------
 # GDELT DOC 2.0 API
@@ -113,6 +119,22 @@ FOMC_2026_MEETING_DATES = [
 OTHER_CONFOUND_DATES = []
 
 CONFOUND_CALENDAR = sorted(set(FOMC_2026_MEETING_DATES) | set(OTHER_CONFOUND_DATES))
+
+# ---------------------------------------------------------------------------
+# US oil production context (used in the Discussion to explain why the 2026 transmission
+# mechanism differs from 2003, verified live against EIA on 2026-09-20, not from memory).
+# 2003 figure: EIA's own historical monthly series (dnav/pet/hist, series MCRFPUS2),
+# averaged across the 12 months of 2003. 2026 figure: EIA "Today in Energy" article
+# (eia.gov/todayinenergy/detail.php?id=68125), September 2026 Short-Term Energy Outlook,
+# a record high driven mostly by the Permian and the Federal Gulf of America.
+# ---------------------------------------------------------------------------
+US_OIL_PRODUCTION_CONTEXT = {
+    "us_crude_output_2003_avg_mmbd": 5.70,
+    "us_crude_output_2026_forecast_mmbd": 13.8,
+    "source_2003": "https://www.eia.gov/dnav/pet/hist/leafhandler.ashx?n=pet&s=mcrfpus2&f=m",
+    "source_2026": "https://www.eia.gov/todayinenergy/detail.php?id=68125",
+    "verified_date": "2026-09-20",
+}
 
 # ---------------------------------------------------------------------------
 # Iran war-risk 2026 timeline (validation reference only, NOT the classification
